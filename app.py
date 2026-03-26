@@ -1,5 +1,5 @@
 import math
-import sqlite3
+import psycopg2
 from datetime import datetime
 
 import pandas as pd
@@ -18,14 +18,14 @@ st.set_page_config(
     layout="wide"
 )
 
-DB_PATH = "earth_materials.db"
+
 
 
 # =========================
 # DATABASE
 # =========================
 def get_connection():
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    return psycopg2.connect(st.secrets["DATABASE_URL"])
 
 
 def init_db():
@@ -34,48 +34,46 @@ def init_db():
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS banks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
         macroproyecto TEXT NOT NULL DEFAULT 'SIN ASIGNAR',
-        latitude REAL NOT NULL,
-        longitude REAL NOT NULL,
+        latitude DOUBLE PRECISION NOT NULL,
+        longitude DOUBLE PRECISION NOT NULL,
         quality TEXT NOT NULL,
-        available_volume REAL NOT NULL,
-        reserved_volume REAL NOT NULL DEFAULT 0,
+        available_volume DOUBLE PRECISION NOT NULL,
+        reserved_volume DOUBLE PRECISION NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT 'Disponible',
-        updated_at TEXT NOT NULL
+        updated_at TIMESTAMP NOT NULL
     )
     """)
-
+    
     cur.execute("""
     CREATE TABLE IF NOT EXISTS projects (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
-        latitude REAL NOT NULL,
-        longitude REAL NOT NULL,
+        latitude DOUBLE PRECISION NOT NULL,
+        longitude DOUBLE PRECISION NOT NULL,
         required_quality TEXT NOT NULL,
-        required_volume REAL NOT NULL,
-        received_volume REAL NOT NULL DEFAULT 0,
+        required_volume DOUBLE PRECISION NOT NULL,
+        received_volume DOUBLE PRECISION NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT 'Activo',
-        updated_at TEXT NOT NULL
+        updated_at TIMESTAMP NOT NULL
     )
     """)
-
+    
     cur.execute("""
     CREATE TABLE IF NOT EXISTS transactions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        bank_id INTEGER NOT NULL,
-        project_id INTEGER NOT NULL,
-        volume REAL NOT NULL,
+        id SERIAL PRIMARY KEY,
+        bank_id INTEGER NOT NULL REFERENCES banks(id),
+        project_id INTEGER NOT NULL REFERENCES projects(id),
+        volume DOUBLE PRECISION NOT NULL,
         quality TEXT NOT NULL,
-        distance_km REAL,
+        distance_km DOUBLE PRECISION,
         status TEXT NOT NULL DEFAULT 'Pendiente',
-        requested_at TEXT NOT NULL,
-        approved_at TEXT,
-        completed_at TEXT,
-        notes TEXT,
-        FOREIGN KEY(bank_id) REFERENCES banks(id),
-        FOREIGN KEY(project_id) REFERENCES projects(id)
+        requested_at TIMESTAMP NOT NULL,
+        approved_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        notes TEXT
     )
     """)
 
@@ -88,7 +86,7 @@ def update_bank_volume(bank_id, new_volume):
     cur = conn.cursor()
 
     # Prevent invalid state
-    cur.execute("SELECT reserved_volume FROM banks WHERE id = ?", (bank_id,))
+    cur.execute("SELECT reserved_volume FROM banks WHERE id = %s", (bank_id,))
     reserved = cur.fetchone()[0]
 
     if new_volume < reserved:
@@ -97,8 +95,8 @@ def update_bank_volume(bank_id, new_volume):
 
     cur.execute("""
         UPDATE banks
-        SET available_volume = ?, updated_at = ?
-        WHERE id = ?
+        SET available_volume = %s, updated_at = %s
+        WHERE id = %s
     """, (new_volume, now_str(), bank_id))
 
     conn.commit()
@@ -113,7 +111,7 @@ def delete_bank(bank_id):
     # Check if there are active transactions
     cur.execute("""
         SELECT COUNT(*) FROM transactions
-        WHERE bank_id = ? AND status IN ('Pendiente', 'Aprobada')
+        WHERE bank_id = %s AND status IN ('Pendiente', 'Aprobada')
     """, (bank_id,))
     count = cur.fetchone()[0]
 
@@ -121,7 +119,7 @@ def delete_bank(bank_id):
         conn.close()
         return False, "Cannot delete bank with active transactions"
 
-    cur.execute("DELETE FROM banks WHERE id = ?", (bank_id,))
+    cur.execute("DELETE FROM banks WHERE id = %s", (bank_id,))
     conn.commit()
     conn.close()
     return True, "Bank deleted"
@@ -134,7 +132,7 @@ def update_project_required_volume(project_id, new_volume):
     cur.execute("""
         SELECT received_volume
         FROM projects
-        WHERE id = ?
+        WHERE id = %s
     """, (project_id,))
     row = cur.fetchone()
 
@@ -150,8 +148,8 @@ def update_project_required_volume(project_id, new_volume):
 
     cur.execute("""
         UPDATE projects
-        SET required_volume = ?, updated_at = ?
-        WHERE id = ?
+        SET required_volume = %s, updated_at = %s
+        WHERE id = %s
     """, (new_volume, now_str(), project_id))
 
     conn.commit()
@@ -166,7 +164,7 @@ def delete_project(project_id):
     cur.execute("""
         SELECT COUNT(*)
         FROM transactions
-        WHERE project_id = ?
+        WHERE project_id = %s
           AND status IN ('Pendiente', 'Aprobada')
     """, (project_id,))
     count = cur.fetchone()[0]
@@ -175,7 +173,7 @@ def delete_project(project_id):
         conn.close()
         return False, "Cannot delete project with active transactions."
 
-    cur.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+    cur.execute("DELETE FROM projects WHERE id = %s", (project_id,))
     conn.commit()
     conn.close()
     return True, "Project deleted."
@@ -204,7 +202,7 @@ def seed_data():
                 name, macroproyecto, latitude, longitude, quality, available_volume,
                 reserved_volume, status, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, sample_banks)
 
     if projects_count == 0:
@@ -216,7 +214,7 @@ def seed_data():
                 name, latitude, longitude, required_quality, required_volume,
                 received_volume, status, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         """, sample_projects)
 
     conn.commit()
@@ -289,8 +287,8 @@ def update_bank_macroproyecto(bank_id, new_macroproyecto):
 
     cur.execute("""
         UPDATE banks
-        SET macroproyecto = ?, updated_at = ?
-        WHERE id = ?
+        SET macroproyecto = %s, updated_at = %s
+        WHERE id = %s
     """, (new_macroproyecto, now_str(), bank_id))
 
     conn.commit()
@@ -308,7 +306,7 @@ def add_bank(name, macroproyecto,lat, lon, quality, volume, status):
             name, macroproyecto,latitude, longitude, quality, available_volume,
             reserved_volume, status, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, 0, %s, %s)
     """, (name, macroproyecto, lat, lon, quality, volume, status, now_str()))
     conn.commit()
     conn.close()
@@ -322,7 +320,7 @@ def add_project(name, lat, lon, quality, volume, status):
             name, latitude, longitude, required_quality, required_volume,
             received_volume, status, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, 0, %s, %s)
     """, (name, lat, lon, quality, volume, status, now_str()))
     conn.commit()
     conn.close()
@@ -332,10 +330,10 @@ def create_transaction(bank_id, project_id, volume, notes=""):
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM banks WHERE id = ?", (bank_id,))
+    cur.execute("SELECT * FROM banks WHERE id = %s", (bank_id,))
     bank = cur.fetchone()
 
-    cur.execute("SELECT * FROM projects WHERE id = ?", (project_id,))
+    cur.execute("SELECT * FROM projects WHERE id = %s", (project_id,))
     project = cur.fetchone()
 
     if bank is None or project is None:
@@ -399,13 +397,13 @@ def create_transaction(bank_id, project_id, volume, notes=""):
             bank_id, project_id, volume, quality, distance_km,
             status, requested_at, notes
         )
-        VALUES (?, ?, ?, ?, ?, 'Pendiente', ?, ?)
+        VALUES (%s, %s, %s, %s, %s, 'Pendiente', %s, %s)
     """, (bank_id, project_id, volume, bank_quality, distance_km, now_str(), notes))
 
     cur.execute("""
         UPDATE banks
-        SET reserved_volume = reserved_volume + ?, updated_at = ?
-        WHERE id = ?
+        SET reserved_volume = reserved_volume + %s, updated_at = %s
+        WHERE id = %s
     """, (volume, now_str(), bank_id))
 
     conn.commit()
@@ -417,7 +415,7 @@ def approve_transaction(transaction_id):
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("SELECT id, status FROM transactions WHERE id = ?", (transaction_id,))
+    cur.execute("SELECT id, status FROM transactions WHERE id = %s", (transaction_id,))
     trx = cur.fetchone()
     if trx is None:
         conn.close()
@@ -429,8 +427,8 @@ def approve_transaction(transaction_id):
 
     cur.execute("""
         UPDATE transactions
-        SET status = 'Aprobada', approved_at = ?
-        WHERE id = ?
+        SET status = 'Aprobada', approved_at = %s
+        WHERE id = %s
     """, (now_str(), transaction_id))
 
     conn.commit()
@@ -445,7 +443,7 @@ def reject_transaction(transaction_id):
     cur.execute("""
         SELECT bank_id, volume, status
         FROM transactions
-        WHERE id = ?
+        WHERE id = %s
     """, (transaction_id,))
     trx = cur.fetchone()
 
@@ -461,14 +459,14 @@ def reject_transaction(transaction_id):
 
     cur.execute("""
         UPDATE banks
-        SET reserved_volume = reserved_volume - ?, updated_at = ?
-        WHERE id = ?
+        SET reserved_volume = reserved_volume - %s, updated_at = %s
+        WHERE id = %s
     """, (volume, now_str(), bank_id))
 
     cur.execute("""
         UPDATE transactions
         SET status = 'Rechazada'
-        WHERE id = ?
+        WHERE id = %s
     """, (transaction_id,))
 
     conn.commit()
@@ -483,7 +481,7 @@ def complete_transaction(transaction_id):
     cur.execute("""
         SELECT bank_id, project_id, volume, status
         FROM transactions
-        WHERE id = ?
+        WHERE id = %s
     """, (transaction_id,))
     trx = cur.fetchone()
 
@@ -499,24 +497,24 @@ def complete_transaction(transaction_id):
 
     cur.execute("""
         UPDATE banks
-        SET available_volume = available_volume - ?,
-            reserved_volume = reserved_volume - ?,
-            updated_at = ?
-        WHERE id = ?
+        SET available_volume = available_volume - %s,
+            reserved_volume = reserved_volume - %s,
+            updated_at = %s
+        WHERE id = %s
     """, (volume, volume, now_str(), bank_id))
 
     cur.execute("""
         UPDATE projects
-        SET received_volume = received_volume + ?,
-            updated_at = ?
-        WHERE id = ?
+        SET received_volume = received_volume + %s,
+            updated_at = %s
+        WHERE id = %s
     """, (volume, now_str(), project_id))
 
     cur.execute("""
         UPDATE transactions
         SET status = 'Completada',
-            completed_at = ?
-        WHERE id = ?
+            completed_at = %s
+        WHERE id = %s
     """, (now_str(), transaction_id))
 
     conn.commit()
