@@ -902,6 +902,7 @@ elif section == "Data Tables":
             data=to_csv_download(banks_df),
             file_name="banks.csv",
             mime="text/csv"
+        )
     
     #with tab1:
         #st.dataframe(banks_df, use_container_width=True)
