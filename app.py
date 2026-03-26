@@ -4,7 +4,8 @@ from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
-import pydeck as pdk
+import folium
+from streamlit_folium import st_folium
 import streamlit as st
 
 
@@ -554,70 +555,48 @@ if section == "Dashboard":
 # MAP
 # =========================
 elif section == "Map":
-    st.subheader("Interactive Map")
+    st.subheader("Interactive Map (Folium)")
 
-    map_points = []
+    # Create base map centered in Monterrey
+    m = folium.Map(location=[25.70, -100.30], zoom_start=10)
 
+    # Add banks (blue)
     if not banks_df.empty:
         for _, row in banks_df.iterrows():
-            map_points.append({
-                "name": row["name"],
-                "latitude": row["latitude"],
-                "longitude": row["longitude"],
-                "type": "Bank",
-                "quality": row["quality"],
-                "volume": row["available_volume"],
-                "color": [0, 128, 255],
-            })
+            folium.CircleMarker(
+                location=[row["latitude"], row["longitude"]],
+                radius=7,
+                popup=f"""
+                    <b>{row['name']}</b><br>
+                    Type: Bank<br>
+                    Quality: {row['quality']}<br>
+                    Available: {row['available_volume']} m³
+                """,
+                color="blue",
+                fill=True,
+                fill_opacity=0.8
+            ).add_to(m)
 
+    # Add projects (red)
     if not projects_df.empty:
         for _, row in projects_df.iterrows():
-            map_points.append({
-                "name": row["name"],
-                "latitude": row["latitude"],
-                "longitude": row["longitude"],
-                "type": "Project",
-                "quality": row["required_quality"],
-                "volume": row["missing_volume"],
-                "color": [255, 100, 100],
-            })
-
-    if map_points:
-        map_df = pd.DataFrame(map_points)
-
-        st.pydeck_chart(pdk.Deck(
-            map_style="mapbox://styles/mapbox/light-v9",
-            initial_view_state=pdk.ViewState(
-                latitude=25.70,
-                longitude=-100.30,
-                zoom=9,
-                pitch=0,
-            ),
-            layers=[
-                pdk.Layer(
-                    "ScatterplotLayer",
-                    data=map_df,
-                    get_position="[longitude, latitude]",
-                    get_color="color",
-                    get_radius=400,
-                    pickable=True,
-                )
-            ],
-            tooltip={
-                "html": """
-                    <b>{name}</b><br/>
-                    Type: {type}<br/>
-                    Quality: {quality}<br/>
-                    Volume: {volume}
+            missing = row["required_volume"] - row["received_volume"]
+            folium.CircleMarker(
+                location=[row["latitude"], row["longitude"]],
+                radius=7,
+                popup=f"""
+                    <b>{row['name']}</b><br>
+                    Type: Project<br>
+                    Quality: {row['required_quality']}<br>
+                    Missing: {missing} m³
                 """,
-                "style": {"backgroundColor": "steelblue", "color": "white"}
-            }
-        ))
+                color="red",
+                fill=True,
+                fill_opacity=0.8
+            ).add_to(m)
 
-        st.markdown("### Map Data")
-        st.dataframe(map_df, use_container_width=True)
-    else:
-        st.info("No map points to display.")
+    # Display map
+    st_folium(m, width=None, height=600)
 
 
 # =========================
