@@ -82,6 +82,50 @@ def init_db():
     conn.close()
 
 
+def update_bank_volume(bank_id, new_volume):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Prevent invalid state
+    cur.execute("SELECT reserved_volume FROM banks WHERE id = ?", (bank_id,))
+    reserved = cur.fetchone()[0]
+
+    if new_volume < reserved:
+        conn.close()
+        return False, f"Volume cannot be less than reserved ({reserved})"
+
+    cur.execute("""
+        UPDATE banks
+        SET available_volume = ?, updated_at = ?
+        WHERE id = ?
+    """, (new_volume, now_str(), bank_id))
+
+    conn.commit()
+    conn.close()
+    return True, "Bank volume updated"
+
+
+def delete_bank(bank_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    # Check if there are active transactions
+    cur.execute("""
+        SELECT COUNT(*) FROM transactions
+        WHERE bank_id = ? AND status IN ('Pendiente', 'Aprobada')
+    """, (bank_id,))
+    count = cur.fetchone()[0]
+
+    if count > 0:
+        conn.close()
+        return False, "Cannot delete bank with active transactions"
+
+    cur.execute("DELETE FROM banks WHERE id = ?", (bank_id,))
+    conn.commit()
+    conn.close()
+    return True, "Bank deleted"
+
+
 def seed_data():
     conn = get_connection()
     cur = conn.cursor()
@@ -810,14 +854,63 @@ elif section == "Data Tables":
 
     tab1, tab2, tab3 = st.tabs(["Banks", "Projects", "Transactions"])
 
+
+
     with tab1:
-        st.dataframe(banks_df, use_container_width=True)
+    st.markdown("### Manage Banks")
+    
+    if banks_df.empty:
+        st.info("No banks available.")
+    else:
+        for _, row in banks_df.iterrows():
+            with st.container():
+                col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
+    
+                with col1:
+                    st.markdown(f"**{row['name']}**")
+                    st.caption(f"{row['quality']} | Available: {row['available_volume']:.0f} | Reserved: {row['reserved_volume']:.0f}")
+    
+                with col2:
+                    new_volume = st.number_input(
+                        f"Edit volume (Bank {row['id']})",
+                        min_value=0.0,
+                        value=float(row["available_volume"]),
+                        key=f"vol_{row['id']}"
+                    )
+    
+                with col3:
+                    if st.button("Update", key=f"update_{row['id']}"):
+                        ok, msg = update_bank_volume(row["id"], new_volume)
+                        if ok:
+                            st.success(msg)
+                            st.rerun()
+                        else:
+                            st.error(msg)
+    
+                with col4:
+                    if st.button("Delete", key=f"delete_{row['id']}"):
+                        ok, msg = delete_bank(row["id"])
+                        if ok:
+                            st.success(msg)
+                            st.rerun()
+                        else:
+                            st.error(msg)
+    
+                st.divider()
         st.download_button(
             "Download Banks CSV",
             data=to_csv_download(banks_df),
             file_name="banks.csv",
             mime="text/csv"
-        )
+    
+    #with tab1:
+        #st.dataframe(banks_df, use_container_width=True)
+        #st.download_button(
+            #"Download Banks CSV",
+            #data=to_csv_download(banks_df),
+            #file_name="banks.csv",
+            #mime="text/csv"
+        #)
 
     with tab2:
         st.dataframe(projects_df, use_container_width=True)
