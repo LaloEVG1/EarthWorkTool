@@ -342,17 +342,40 @@ def create_transaction(bank_id, project_id, volume, notes=""):
         conn.close()
         return False, "Bank or project not found."
 
-    bank_quality = bank[4]
-    available_volume = bank[5]
-    reserved_volume = bank[6]
-    bank_lat = bank[2]
-    bank_lon = bank[3]
+    # banks table with macroproyecto:
+    # 0 id
+    # 1 name
+    # 2 macroproyecto
+    # 3 latitude
+    # 4 longitude
+    # 5 quality
+    # 6 available_volume
+    # 7 reserved_volume
+    # 8 status
+    # 9 updated_at
+
+    bank_quality = bank[5]
+    available_volume = float(bank[6])
+    reserved_volume = float(bank[7])
+    bank_lat = float(bank[3])
+    bank_lon = float(bank[4])
+
+    # projects table:
+    # 0 id
+    # 1 name
+    # 2 latitude
+    # 3 longitude
+    # 4 required_quality
+    # 5 required_volume
+    # 6 received_volume
+    # 7 status
+    # 8 updated_at
 
     project_quality = project[4]
-    required_volume = project[5]
-    received_volume = project[6]
-    project_lat = project[2]
-    project_lon = project[3]
+    required_volume = float(project[5])
+    received_volume = float(project[6])
+    project_lat = float(project[2])
+    project_lon = float(project[3])
 
     free_volume = available_volume - reserved_volume
     missing_volume = required_volume - received_volume
