@@ -859,44 +859,44 @@ elif section == "Data Tables":
     with tab1:
     st.markdown("### Manage Banks")
     
-    if banks_df.empty:
-        st.info("No banks available.")
-    else:
-        for _, row in banks_df.iterrows():
-            with st.container():
-                col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
-    
-                with col1:
-                    st.markdown(f"**{row['name']}**")
-                    st.caption(f"{row['quality']} | Available: {row['available_volume']:.0f} | Reserved: {row['reserved_volume']:.0f}")
-    
-                with col2:
-                    new_volume = st.number_input(
-                        f"Edit volume (Bank {row['id']})",
-                        min_value=0.0,
-                        value=float(row["available_volume"]),
-                        key=f"vol_{row['id']}"
-                    )
-    
-                with col3:
-                    if st.button("Update", key=f"update_{row['id']}"):
-                        ok, msg = update_bank_volume(row["id"], new_volume)
-                        if ok:
-                            st.success(msg)
-                            st.rerun()
-                        else:
-                            st.error(msg)
-    
-                with col4:
-                    if st.button("Delete", key=f"delete_{row['id']}"):
-                        ok, msg = delete_bank(row["id"])
-                        if ok:
-                            st.success(msg)
-                            st.rerun()
-                        else:
-                            st.error(msg)
-    
-                st.divider()
+        if banks_df.empty:
+            st.info("No banks available.")
+        else:
+            for _, row in banks_df.iterrows():
+                with st.container():
+                    col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
+        
+                    with col1:
+                        st.markdown(f"**{row['name']}**")
+                        st.caption(f"{row['quality']} | Available: {row['available_volume']:.0f} | Reserved: {row['reserved_volume']:.0f}")
+        
+                    with col2:
+                        new_volume = st.number_input(
+                            f"Edit volume (Bank {row['id']})",
+                            min_value=0.0,
+                            value=float(row["available_volume"]),
+                            key=f"vol_{row['id']}"
+                        )
+        
+                    with col3:
+                        if st.button("Update", key=f"update_{row['id']}"):
+                            ok, msg = update_bank_volume(row["id"], new_volume)
+                            if ok:
+                                st.success(msg)
+                                st.rerun()
+                            else:
+                                st.error(msg)
+        
+                    with col4:
+                        if st.button("Delete", key=f"delete_{row['id']}"):
+                            ok, msg = delete_bank(row["id"])
+                            if ok:
+                                st.success(msg)
+                                st.rerun()
+                            else:
+                                st.error(msg)
+        
+                    st.divider()
         st.download_button(
             "Download Banks CSV",
             data=to_csv_download(banks_df),
