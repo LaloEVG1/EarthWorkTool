@@ -196,10 +196,7 @@ def seed_data():
 
     if banks_count == 0:
         sample_banks = [
-            ("Banco Escobedo Norte", 25.812, -100.313, "Terraplen", 18000, 0, "Disponible", now),
-            ("Banco Apodaca Oriente", 25.779, -100.188, "Subrasante", 12000, 0, "Disponible", now),
-            ("Banco Santa Catarina", 25.673, -100.458, "Terraplen", 25000, 0, "Disponible", now),
-            ("Banco Guadalupe Sur", 25.652, -100.239, "Subrasante", 9000, 0, "Disponible", now),
+            ("TEST", 25.812, -100.313, "Terraplen", 0, 0, "Disponible", now),
         ]
         cur.executemany("""
             INSERT INTO banks (
@@ -211,9 +208,7 @@ def seed_data():
 
     if projects_count == 0:
         sample_projects = [
-            ("Proyecto Av. Lincoln", 25.801, -100.402, "Terraplen", 10000, 0, "Activo", now),
-            ("Proyecto Carretera Apodaca", 25.762, -100.167, "Subrasante", 6000, 0, "Activo", now),
-            ("Proyecto Libramiento Sur", 25.620, -100.320, "Terraplen", 15000, 0, "Activo", now),
+            ("TEST", 25.801, -100.402, "Terraplen", 0, 0, "Activo", now),
         ]
         cur.executemany("""
             INSERT INTO projects (
