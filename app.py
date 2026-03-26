@@ -592,25 +592,6 @@ else:
     projects_df["missing_volume"] = []
 
 
-"""st.markdown("### Filters")
-
-macro_options = ["TODOS"]
-if not banks_df.empty and "macroproyecto" in banks_df.columns:
-    macro_options += sorted(banks_df["macroproyecto"].dropna().unique().tolist())
-
-selected_macro = st.selectbox(
-    "Filter by Macroproyecto",
-    macro_options,
-    key="dashboard_macroproyecto_filter"
-)
-
-filtered_banks_df = banks_df.copy()
-
-if selected_macro != "TODOS":
-    filtered_banks_df = filtered_banks_df[
-        filtered_banks_df["macroproyecto"] == selected_macro
-    ].copy()
-    """
 
 # =========================
 # SIDEBAR
