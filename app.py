@@ -853,7 +853,11 @@ elif section == "Add Bank":
         name = st.text_input("Bank name")
         macro_options = ["DOMINIO CUMBRES", "TERRA PARK DOMINIO", "DOMINIO HUASTECA", "SIN ASIGNAR"]
 
-
+        macroproyecto = st.selectbox(
+            "Macroproyecto",
+            macro_options,
+            key="add_bank_macro"
+        )
         
         col1, col2 = st.columns(2)
         with col1:
