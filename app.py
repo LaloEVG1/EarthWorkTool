@@ -598,7 +598,11 @@ macro_options = ["TODOS"]
 if not banks_df.empty and "macroproyecto" in banks_df.columns:
     macro_options += sorted(banks_df["macroproyecto"].dropna().unique().tolist())
 
-selected_macro = st.selectbox("Filter by Macroproyecto", macro_options)
+selected_macro = st.selectbox(
+    "Filter by Macroproyecto",
+    macro_options,
+    key="dashboard_macroproyecto_filter"
+)
 
 filtered_banks_df = banks_df.copy()
 
@@ -643,7 +647,11 @@ if section == "Dashboard":
     else:
         macro_options = ["TODOS"]
 
-    selected_macro = st.selectbox("Filter by Macroproyecto", macro_options)
+    selected_macro = st.selectbox(
+    "Filter by Macroproyecto",
+    macro_options,
+    key="dashboard_macroproyecto_filter2"
+)
 
     filtered_banks_df = banks_df.copy()
 
