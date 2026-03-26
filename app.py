@@ -13,7 +13,7 @@ import streamlit as st
 # CONFIG
 # =========================
 st.set_page_config(
-    page_title="Earth Material Management",
+    page_title="ADMINISTRACIÓN DE MOVIMIENTO DE TIERRAS",
     page_icon="🛠️",
     layout="wide"
 )
