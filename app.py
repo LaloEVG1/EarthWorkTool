@@ -857,7 +857,7 @@ elif section == "Data Tables":
 
 
     with tab1:
-    st.markdown("### Manage Banks")
+        st.markdown("### Manage Banks")
     
         if banks_df.empty:
             st.info("No banks available.")
