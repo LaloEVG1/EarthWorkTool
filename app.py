@@ -36,6 +36,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS banks (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
+        macroproyecto TEXT NOT NULL DEFAULT 'SIN ASIGNAR',
         latitude REAL NOT NULL,
         longitude REAL NOT NULL,
         quality TEXT NOT NULL,
@@ -196,14 +197,14 @@ def seed_data():
 
     if banks_count == 0:
         sample_banks = [
-            ("TEST", 25.812, -100.313, "Terraplen", 0, 0, "Disponible", now),
+            ("TEST", "DOMINIO CUMBRES",25.812, -100.313, "Terraplen", 0, 0, "Disponible", now),
         ]
         cur.executemany("""
             INSERT INTO banks (
-                name, latitude, longitude, quality, available_volume,
+                name, macroproyecto, latitude, longitude, quality, available_volume,
                 reserved_volume, status, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, sample_banks)
 
     if projects_count == 0:
@@ -282,16 +283,33 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return r * c
 
 
-def add_bank(name, lat, lon, quality, volume, status):
+def update_bank_macroproyecto(bank_id, new_macroproyecto):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE banks
+        SET macroproyecto = ?, updated_at = ?
+        WHERE id = ?
+    """, (new_macroproyecto, now_str(), bank_id))
+
+    conn.commit()
+    conn.close()
+    return True, "Macroproyecto updated."
+
+
+
+
+def add_bank(name, macroproyecto,lat, lon, quality, volume, status):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO banks (
-            name, latitude, longitude, quality, available_volume,
+            name, macroproyecto,latitude, longitude, quality, available_volume,
             reserved_volume, status, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, 0, ?, ?)
-    """, (name, lat, lon, quality, volume, status, now_str()))
+        VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
+    """, (name, macroproyecto, lat, lon, quality, volume, status, now_str()))
     conn.commit()
     conn.close()
 
@@ -574,6 +592,21 @@ else:
     projects_df["missing_volume"] = []
 
 
+st.markdown("### Filters")
+
+macro_options = ["TODOS"]
+if not banks_df.empty and "macroproyecto" in banks_df.columns:
+    macro_options += sorted(banks_df["macroproyecto"].dropna().unique().tolist())
+
+selected_macro = st.selectbox("Filter by Macroproyecto", macro_options)
+
+filtered_banks_df = banks_df.copy()
+
+if selected_macro != "TODOS":
+    filtered_banks_df = filtered_banks_df[
+        filtered_banks_df["macroproyecto"] == selected_macro
+    ].copy()
+
 # =========================
 # SIDEBAR
 # =========================
@@ -598,9 +631,38 @@ section = st.sidebar.radio(
 if section == "Dashboard":
     st.subheader("General Dashboard")
 
-    total_available = float(banks_df["available_volume"].sum()) if not banks_df.empty else 0.0
-    total_reserved = float(banks_df["reserved_volume"].sum()) if not banks_df.empty else 0.0
-    total_free = float(banks_df["free_volume"].sum()) if not banks_df.empty else 0.0
+    # =====================
+    # FILTERS
+    # =====================
+    st.markdown("### Filters")
+
+    if not banks_df.empty and "macroproyecto" in banks_df.columns:
+        macro_options = ["TODOS"] + sorted(
+            banks_df["macroproyecto"].dropna().unique().tolist()
+        )
+    else:
+        macro_options = ["TODOS"]
+
+    selected_macro = st.selectbox("Filter by Macroproyecto", macro_options)
+
+    filtered_banks_df = banks_df.copy()
+
+    if selected_macro != "TODOS" and not filtered_banks_df.empty and "macroproyecto" in filtered_banks_df.columns:
+        filtered_banks_df = filtered_banks_df[
+            filtered_banks_df["macroproyecto"] == selected_macro
+        ].copy()
+
+    if not filtered_banks_df.empty:
+        filtered_banks_df["free_volume"] = (
+            filtered_banks_df["available_volume"] - filtered_banks_df["reserved_volume"]
+        )
+
+    # =====================
+    # METRICS
+    # =====================
+    total_available = float(filtered_banks_df["available_volume"].sum()) if not filtered_banks_df.empty else 0.0
+    total_reserved = float(filtered_banks_df["reserved_volume"].sum()) if not filtered_banks_df.empty else 0.0
+    total_free = float(filtered_banks_df["free_volume"].sum()) if not filtered_banks_df.empty else 0.0
     total_needed = float(projects_df["missing_volume"].clip(lower=0).sum()) if not projects_df.empty else 0.0
 
     c1, c2, c3, c4 = st.columns(4)
@@ -609,43 +671,140 @@ if section == "Dashboard":
     c3.metric("Free Volume", f"{total_free:,.2f} m³")
     c4.metric("Pending Need", f"{total_needed:,.2f} m³")
 
-    left, right = st.columns(2)
+    # =====================
+    # ROW 1: PIE CHARTS
+    # =====================
+    col1, col2 = st.columns(2)
 
-    with left:
+    with col1:
         st.markdown("### Volume by Quality")
-        if not banks_df.empty:
-            chart_df = banks_df.groupby("quality", as_index=False)["available_volume"].sum()
-            fig = px.pie(
-                chart_df,
+
+        if not filtered_banks_df.empty:
+            quality_chart_df = filtered_banks_df.groupby(
+                "quality", as_index=False
+            )["available_volume"].sum()
+
+            fig_quality = px.pie(
+                quality_chart_df,
                 names="quality",
                 values="available_volume",
                 title="Available Material by Quality"
             )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No banks available yet.")
 
-    with right:
-        st.markdown("### Recent Transactions")
-        if not transactions_df.empty:
-            st.dataframe(
-                transactions_df[[
-                    "id", "bank_name", "project_name", "volume",
-                    "quality", "status", "requested_at"
-                ]].head(10),
-                use_container_width=True
+            fig_quality.update_traces(
+                texttemplate="%{value:,.0f} m³ (%{percent})",
+                textposition="inside"
             )
+
+            st.plotly_chart(fig_quality, width="stretch")
         else:
-            st.info("No transactions yet.")
+            st.info("No banks available for this filter.")
 
-    st.markdown("### Material by Bank")
-    if not banks_df.empty:
-        bank_chart = banks_df[["name", "available_volume", "reserved_volume", "free_volume"]].copy()
-        st.dataframe(bank_chart, use_container_width=True)
+    with col2:
+        st.markdown("### Volume by Macroproyecto")
+
+        if not filtered_banks_df.empty and "macroproyecto" in filtered_banks_df.columns:
+            macro_chart_df = filtered_banks_df.groupby(
+                "macroproyecto", as_index=False
+            )["available_volume"].sum()
+
+            fig_macro = px.pie(
+                macro_chart_df,
+                names="macroproyecto",
+                values="available_volume",
+                title="Available Volume by Macroproyecto"
+            )
+
+            fig_macro.update_traces(
+                texttemplate="%{value:,.0f} m³ (%{percent})",
+                textposition="inside"
+            )
+
+            st.plotly_chart(fig_macro, width="stretch")
+        else:
+            st.info("No macroproyecto data available.")
+
+    # =====================
+    # ROW 2: BAR CHARTS
+    # =====================
+    col3, col4 = st.columns(2)
+
+    with col3:
+        st.markdown("### Volume by Macroproyecto and Quality")
+
+        if not filtered_banks_df.empty and "macroproyecto" in filtered_banks_df.columns:
+            stacked_df = filtered_banks_df.groupby(
+                ["macroproyecto", "quality"], as_index=False
+            )["available_volume"].sum()
+
+            fig_stacked = px.bar(
+                stacked_df,
+                x="macroproyecto",
+                y="available_volume",
+                color="quality",
+                title="Available Volume by Macroproyecto and Quality",
+                barmode="stack"
+            )
+
+            st.plotly_chart(fig_stacked, width="stretch")
+        else:
+            st.info("No macroproyecto data available.")
+
+    with col4:
+        st.markdown("### Free Volume by Macroproyecto")
+
+        if not filtered_banks_df.empty and "macroproyecto" in filtered_banks_df.columns:
+            free_macro_df = filtered_banks_df.groupby(
+                "macroproyecto", as_index=False
+            )["free_volume"].sum()
+
+            fig_bar = px.bar(
+                free_macro_df,
+                x="macroproyecto",
+                y="free_volume",
+                title="Free Volume by Macroproyecto",
+                text="free_volume"
+            )
+
+            fig_bar.update_traces(
+                texttemplate="%{text:,.0f} m³",
+                textposition="outside"
+            )
+
+            st.plotly_chart(fig_bar, width="stretch")
+        else:
+            st.info("No macroproyecto data available.")
+
+    # =====================
+    # ROW 3: FILTERED TABLE
+    # =====================
+    st.markdown("### Banks in Selected Filter")
+
+    if not filtered_banks_df.empty:
+        columns_to_show = [
+            "id", "name", "macroproyecto", "quality",
+            "available_volume", "reserved_volume", "free_volume", "status"
+        ]
+        existing_columns = [col for col in columns_to_show if col in filtered_banks_df.columns]
+        st.dataframe(filtered_banks_df[existing_columns], width="stretch")
     else:
-        st.info("No banks available.")
+        st.info("No banks found for the selected filter.")
 
+    # =====================
+    # ROW 4: RECENT TRANSACTIONS
+    # =====================
+    st.markdown("### Recent Transactions")
 
+    if not transactions_df.empty:
+        st.dataframe(
+            transactions_df[[
+                "id", "bank_name", "project_name", "volume",
+                "quality", "status", "requested_at"
+            ]].head(10),
+            width="stretch"
+        )
+    else:
+        st.info("No transactions yet.")
 # =========================
 # MAP
 # =========================
@@ -702,13 +861,17 @@ elif section == "Add Bank":
 
     with st.form("add_bank_form"):
         name = st.text_input("Bank name")
+        macro_options = ["DOMINIO CUMBRES", "TERRA PARK DOMINIO", "DOMINIO HUASTECA", "SIN ASIGNAR"]
+
+
+        
         col1, col2 = st.columns(2)
         with col1:
             latitude = st.number_input("Latitude", value=25.7000, format="%.6f")
         with col2:
             longitude = st.number_input("Longitude", value=-100.3000, format="%.6f")
 
-        quality = st.selectbox("Quality", ["Terraplen", "Subrasante"])
+        quality = st.selectbox("Quality", ["Terraplen", "Subrasante", "Lutita", "Triturado"])
         volume = st.number_input("Available volume (m³)", min_value=0.0, value=1000.0, step=100.0)
         status = st.selectbox("Status", ["Disponible", "Reservado", "Agotado"])
 
@@ -718,7 +881,7 @@ elif section == "Add Bank":
             if not name.strip():
                 st.error("Please enter a bank name.")
             else:
-                add_bank(name.strip(), latitude, longitude, quality, volume, status)
+                add_bank(name.strip(), macroproyecto, latitude, longitude, quality, volume, status)
                 st.success("Bank added successfully.")
                 st.rerun()
 
@@ -919,7 +1082,10 @@ elif section == "Data Tables":
         
                     with col1:
                         st.markdown(f"**{row['name']}**")
-                        st.caption(f"{row['quality']} | Available: {row['available_volume']:.0f} | Reserved: {row['reserved_volume']:.0f}")
+                        st.caption(
+    f"{row['macroproyecto']} | {row['quality']} | "
+    f"Available: {row['available_volume']:.0f} | Reserved: {row['reserved_volume']:.0f}"
+)
         
                     with col2:
                         new_volume = st.number_input(
