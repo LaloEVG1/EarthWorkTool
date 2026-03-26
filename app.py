@@ -964,58 +964,58 @@ elif section == "Data Tables":
             #mime="text/csv"
         #)
 
-with tab2:
-    st.markdown("### Manage Projects")
-
-    if projects_df.empty:
-        st.info("No projects available.")
-    else:
-        for _, row in projects_df.iterrows():
-            with st.container():
-                col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
-
-                with col1:
-                    missing = row["required_volume"] - row["received_volume"]
-                    st.markdown(f"**{row['name']}**")
-                    st.caption(
-                        f"{row['required_quality']} | Required: {row['required_volume']:.0f} | "
-                        f"Received: {row['received_volume']:.0f} | Missing: {missing:.0f}"
-                    )
-
-                with col2:
-                    new_required_volume = st.number_input(
-                        f"Edit required volume (Project {row['id']})",
-                        min_value=0.0,
-                        value=float(row["required_volume"]),
-                        key=f"proj_vol_{row['id']}"
-                    )
-
-                with col3:
-                    if st.button("Update", key=f"update_project_{row['id']}"):
-                        ok, msg = update_project_required_volume(row["id"], new_required_volume)
-                        if ok:
-                            st.success(msg)
-                            st.rerun()
-                        else:
-                            st.error(msg)
-
-                with col4:
-                    if st.button("Delete", key=f"delete_project_{row['id']}"):
-                        ok, msg = delete_project(row["id"])
-                        if ok:
-                            st.success(msg)
-                            st.rerun()
-                        else:
-                            st.error(msg)
-
-                st.divider()
-
-    st.download_button(
-        "Download Projects CSV",
-        data=to_csv_download(projects_df),
-        file_name="projects.csv",
-        mime="text/csv"
-    )
+    with tab2:
+        st.markdown("### Manage Projects")
+    
+        if projects_df.empty:
+            st.info("No projects available.")
+        else:
+            for _, row in projects_df.iterrows():
+                with st.container():
+                    col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
+    
+                    with col1:
+                        missing = row["required_volume"] - row["received_volume"]
+                        st.markdown(f"**{row['name']}**")
+                        st.caption(
+                            f"{row['required_quality']} | Required: {row['required_volume']:.0f} | "
+                            f"Received: {row['received_volume']:.0f} | Missing: {missing:.0f}"
+                        )
+    
+                    with col2:
+                        new_required_volume = st.number_input(
+                            f"Edit required volume (Project {row['id']})",
+                            min_value=0.0,
+                            value=float(row["required_volume"]),
+                            key=f"proj_vol_{row['id']}"
+                        )
+    
+                    with col3:
+                        if st.button("Update", key=f"update_project_{row['id']}"):
+                            ok, msg = update_project_required_volume(row["id"], new_required_volume)
+                            if ok:
+                                st.success(msg)
+                                st.rerun()
+                            else:
+                                st.error(msg)
+    
+                    with col4:
+                        if st.button("Delete", key=f"delete_project_{row['id']}"):
+                            ok, msg = delete_project(row["id"])
+                            if ok:
+                                st.success(msg)
+                                st.rerun()
+                            else:
+                                st.error(msg)
+    
+                    st.divider()
+    
+        st.download_button(
+            "Download Projects CSV",
+            data=to_csv_download(projects_df),
+            file_name="projects.csv",
+            mime="text/csv"
+        )
 
     with tab3:
         st.dataframe(transactions_df, use_container_width=True)
