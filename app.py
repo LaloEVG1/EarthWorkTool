@@ -592,7 +592,7 @@ else:
     projects_df["missing_volume"] = []
 
 
-st.markdown("### Filters")
+"""st.markdown("### Filters")
 
 macro_options = ["TODOS"]
 if not banks_df.empty and "macroproyecto" in banks_df.columns:
@@ -610,6 +610,7 @@ if selected_macro != "TODOS":
     filtered_banks_df = filtered_banks_df[
         filtered_banks_df["macroproyecto"] == selected_macro
     ].copy()
+    """
 
 # =========================
 # SIDEBAR
