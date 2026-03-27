@@ -24,6 +24,7 @@ st.set_page_config(
 # =========================
 # DATABASE
 # =========================
+@st.cache_resource
 def get_connection():
     return psycopg2.connect(st.secrets["DATABASE_URL"])
 
@@ -224,9 +225,7 @@ def seed_data():
 @st.cache_data(ttl=10)
 def load_banks():
     conn = get_connection()
-    df = pd.read_sql_query("SELECT * FROM banks ORDER BY id DESC", conn)
-    conn.close()
-    return df
+    return pd.read_sql_query("SELECT * FROM banks ORDER BY id DESC", conn)
 
 
 @st.cache_data(ttl=10)
