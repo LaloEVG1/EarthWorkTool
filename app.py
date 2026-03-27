@@ -872,6 +872,26 @@ elif section == "Map":
             ).add_to(m)
 
     # Display map
+
+    legend_html = """
+    <div style="
+    position: fixed; 
+    bottom: 50px; left: 50px; width: 220px; height: 90px; 
+    background-color: white; 
+    border:2px solid grey; 
+    z-index:9999; 
+    font-size:14px;
+    padding: 10px;
+    ">
+    <b>Legend</b><br>
+    <i style="color:blue;">●</i> Banks (Material)<br>
+    <i style="color:red;">●</i> Projects (Demand)
+    </div>
+    """
+    
+    m.get_root().html.add_child(folium.Element(legend_html))
+
+    
     st_folium(m, width=None, height=600)
 
 
