@@ -596,22 +596,6 @@ seed_data()
 st.title("🛠️ Earth Material Management")
 st.caption("Dashboard for available material, projects, map, and transaction control.")
 
-# =========================
-# LOAD DATA
-# =========================
-banks_df = load_banks()
-projects_df = load_projects()
-transactions_df = load_transactions()
-
-if not banks_df.empty:
-    banks_df["free_volume"] = banks_df["available_volume"] - banks_df["reserved_volume"]
-else:
-    banks_df["free_volume"] = []
-
-if not projects_df.empty:
-    projects_df["missing_volume"] = projects_df["required_volume"] - projects_df["received_volume"]
-else:
-    projects_df["missing_volume"] = []
 
 
 
@@ -631,6 +615,32 @@ section = st.sidebar.radio(
         "Data Tables"
     ]
 )
+
+
+# =========================
+# LOAD DATA
+# =========================
+
+
+
+banks_df = pd.DataFrame()
+projects_df = pd.DataFrame()
+transactions_df = pd.DataFrame()
+
+if section in ["Dashboard", "Map", "Recommendations", "Transactions", "Data Tables"]:
+    banks_df = load_banks()
+    projects_df = load_projects()
+
+if section in ["Dashboard", "Transactions", "Data Tables"]:
+    transactions_df = load_transactions()
+
+if not banks_df.empty:
+    banks_df["free_volume"] = banks_df["available_volume"] - banks_df["reserved_volume"]
+
+if not projects_df.empty:
+    projects_df["missing_volume"] = projects_df["required_volume"] - projects_df["received_volume"]
+
+
 
 
 # =========================
