@@ -24,7 +24,6 @@ st.set_page_config(
 # =========================
 # DATABASE
 # =========================
-@st.cache_resource
 def get_connection():
     return psycopg2.connect(st.secrets["DATABASE_URL"])
 
