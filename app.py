@@ -877,7 +877,7 @@ elif section == "Map":
     <div style="
     position: fixed; 
     bottom: 50px; left: 50px; width: 220px; height: 90px; 
-    background-color: white; 
+    background-color: black; 
     border:2px solid grey; 
     z-index:9999; 
     font-size:14px;
