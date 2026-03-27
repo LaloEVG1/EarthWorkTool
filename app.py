@@ -221,6 +221,7 @@ def seed_data():
     conn.close()
 
 
+@st.cache_data(ttl=10)
 def load_banks():
     conn = get_connection()
     df = pd.read_sql_query("SELECT * FROM banks ORDER BY id DESC", conn)
@@ -228,6 +229,7 @@ def load_banks():
     return df
 
 
+@st.cache_data(ttl=10)
 def load_projects():
     conn = get_connection()
     df = pd.read_sql_query("SELECT * FROM projects ORDER BY id DESC", conn)
@@ -235,6 +237,7 @@ def load_projects():
     return df
 
 
+@st.cache_data(ttl=10)
 def load_transactions():
     conn = get_connection()
     query = """
